@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AirDigit AI — Real-Time Mid-Air Digit Recognition</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Outfit:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <!-- MediaPipe Hands & Camera Utils -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Header -->
+    <header class="top-nav">
+      <div class="brand">
+        <div class="brand-icon">🖐️</div>
+        <div>
+          <h1>AIRDIGIT <span class="accent-text">AI</span></h1>
+          <p class="tagline">Real-Time CNN Mid-Air Digit Recognition & Math Engine</p>
+        </div>
+      </div>
+      <div class="header-badges">
+        <div class="badge status-badge" id="appModeBadge">
+          <span class="pulse-dot"></span>
+          <span id="appModeText">INITIALIZING</span>
+        </div>
+        <div class="badge fps-badge" id="fpsBadge">
+          <span>FPS: <strong id="fpsVal">0.0</strong></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="workspace">
+      <!-- Left: Interactive Canvas & Video -->
+      <section class="viewport-card">
+        <div class="viewport-wrapper" id="viewportWrapper">
+          <!-- Hidden Video Element for MediaPipe processing -->
+          <video id="webcamVideo" playsinline muted></video>
+          <!-- Display Canvas for Video + Skeleton + Particles + Ink -->
+          <canvas id="mainCanvas"></canvas>
+          <!-- Drawing Overlay Canvas -->
+          <canvas id="inkCanvas"></canvas>
+
+          <!-- On-Canvas HUD Notifications -->
+          <div class="hud-overlay" id="hudOverlay">
+            <div class="hud-gesture" id="hudGesture">
+              <span class="hud-icon" id="hudIcon">☝️</span>
+              <span id="hudMsg">Air-writing mode active</span>
+            </div>
+            <div class="fist-progress-ring" id="fistRing" style="display:none;">
+              <svg viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="42" class="ring-bg"></circle>
+                <circle cx="50" cy="50" r="42" class="ring-fill" id="fistRingFill"></circle>
+              </svg>
+              <span class="fist-label">CLEARING</span>
+            </div>
+          </div>
+
+          <!-- Bounding Box Prediction Tag -->
+          <div class="prediction-tag" id="predictionTag" style="display:none;">
+            <span class="pred-num" id="tagDigit">7</span>
+            <span class="pred-conf" id="tagConf">99%</span>
+          </div>
+        </div>
+
+        <!-- Viewport Toolbar -->
+        <div class="toolbar">
+          <div class="tool-group">
+            <button class="tool-btn active" id="btnToggleCam" title="Toggle Webcam">
+              <span class="icon">📷</span> <span class="btn-text">Camera</span>
+            </button>
+            <button class="tool-btn" id="btnToggleMouse" title="Toggle Mouse / Touch Drawing Mode">
+              <span class="icon">🖱️</span> <span class="btn-text">Mouse Draw</span>
+            </button>
+            <button class="tool-btn" id="btnMathMode" title="Toggle Math Solver Mode">
+              <span class="icon">🧮</span> <span class="btn-text">Math Solver</span>
+            </button>
+            <button class="tool-btn" id="btnGradCam" title="Toggle Grad-CAM Heatmap">
+              <span class="icon">🔥</span> <span class="btn-text">Grad-CAM</span>
+            </button>
+          </div>
+          <div class="tool-group">
+            <button class="tool-btn btn-danger" id="btnClear" title="Clear Canvas (Key: C)">
+              <span class="icon">🧹</span> <span class="btn-text">Clear (C)</span>
+            </button>
+            <button class="tool-btn" id="btnScreenshot" title="Take Screenshot (Key: S)">
+              <span class="icon">📸</span> <span class="btn-text">Snapshot (S)</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: Cyber Neon Analytics Dashboard -->
+      <aside class="dashboard-card">
+        <!-- Giant Prediction Card -->
+        <div class="prediction-card">
+          <div class="prediction-header">
+            <span>PREDICTED DIGIT</span>
+            <span class="badge confidence-badge" id="confidenceBadge">0.0% CONF</span>
+          </div>
+          <div class="prediction-body">
+            <div class="big-digit" id="bigDigit">?</div>
+            <div class="digit-sub" id="digitSub">Draw in mid-air or drag with mouse</div>
+          </div>
+        </div>
+
+        <!-- Model Preprocessing & Heatmap Views -->
+        <div class="inspectors-grid">
+          <div class="inspector-box">
+            <div class="inspector-label">
+              <span>MNIST INPUT (28×28)</span>
+              <span class="badge">Cropped & Centered</span>
+            </div>
+            <div class="preview-box">
+              <canvas id="previewCanvas" width="28" height="28"></canvas>
+              <div class="scanline"></div>
+            </div>
+          </div>
+
+          <div class="inspector-box" id="gradCamBox">
+            <div class="inspector-label">
+              <span>GRAD-CAM ACTIVATION</span>
+              <span class="badge highlight">Conv4 Heatmap</span>
+            </div>
+            <div class="preview-box">
+              <canvas id="gradCamCanvas" width="28" height="28"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Math Solver Panel (Visible in Math Mode) -->
+        <div class="math-panel" id="mathPanel" style="display:none;">
+          <div class="math-header">
+            <span>MATH EXPRESSION SOLVER</span>
+            <span class="badge badge-accent">ACTIVE</span>
+          </div>
+          <div class="math-display">
+            <div class="math-expr" id="mathExpr">3 + 4</div>
+            <div class="math-equals">=</div>
+            <div class="math-res" id="mathRes">7</div>
+          </div>
+          <div class="math-steps" id="mathSteps">Draw digits and operators (+, -, *, /)</div>
+        </div>
+
+        <!-- Probability Distribution Bars (0 to 9) -->
+        <div class="prob-section">
+          <div class="section-title">
+            <span>CONFIDENCE DISTRIBUTION</span>
+            <span class="status-indicator">CNN SOFTMAX</span>
+          </div>
+          <div class="prob-bars" id="probBars">
+            <!-- 10 bars generated dynamically -->
+          </div>
+        </div>
+
+        <!-- Gesture Cheatsheet -->
+        <div class="gesture-guide">
+          <div class="guide-item">
+            <span class="guide-icon">☝️</span>
+            <div>
+              <strong>Index Up</strong>
+              <p>Draw Neon Ink</p>
+            </div>
+          </div>
+          <div class="guide-item">
+            <span class="guide-icon">✌️</span>
+            <div>
+              <strong>Index + Middle</strong>
+              <p>Hover Cursor</p>
+            </div>
+          </div>
+          <div class="guide-item">
+            <span class="guide-icon">✊</span>
+            <div>
+              <strong>Closed Fist (0.8s)</strong>
+              <p>Clear Canvas</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
