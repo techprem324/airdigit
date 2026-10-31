@@ -19,7 +19,7 @@ from model import DigitCNN, MEAN, STD
 
 PORT = 8000
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-MODEL_PATH = "models/digit_cnn.pt"
+MODEL_PATH = str((Path(__file__).parent / "models" / "digit_cnn.pt").resolve())
 
 # Global model state
 _model = None
@@ -86,6 +86,13 @@ class AirDigitHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(Path(__file__).parent / "web"), **kwargs)
 
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.end_headers()
+
     def do_POST(self):
         if self.path == "/api/predict":
             length = int(self.headers.get("Content-Length", 0))
@@ -128,6 +135,8 @@ class AirDigitHandler(SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
             self.end_headers()
             self.wfile.write(json.dumps(resp).encode("utf-8"))
             return
@@ -146,6 +155,8 @@ class AirDigitHandler(SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
             self.end_headers()
             self.wfile.write(json.dumps(resp).encode("utf-8"))
             return

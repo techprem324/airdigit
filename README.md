@@ -90,8 +90,8 @@ Output: Softmax Probabilities [0.0 - 1.0] across digits 0-9
 
 ### 1. Clone & Set Up Environment
 ```bash
-git clone https://github.com/techprem324/airdigit-ai.git
-cd airdigit-ai
+git clone https://github.com/techprem324/airdigit.git
+cd airdigit
 
 # Create virtual environment
 python -m venv venv
@@ -102,6 +102,7 @@ venv\Scripts\activate       # Windows
 
 # Install pinned dependencies
 pip install -r requirements.txt
+npm install
 ```
 
 ### 2. Run the Live Web App (Browser Interface)
@@ -110,6 +111,12 @@ Experience the full neon dashboard directly in your web browser with WebRTC came
 python web_app.py
 ```
 Open **[http://localhost:8000](http://localhost:8000)** in Chrome, Edge, or Safari!
+
+#### Expose to a Public Live URL (Tunneling)
+To share a live working public HTTPS link for mid-air webcam gesture testing anywhere:
+```bash
+node tunnel.js
+```
 
 ### 3. Run the Desktop OpenCV App
 Run the native desktop camera window:
@@ -152,9 +159,11 @@ airdigit-ai/
 ├── train.py                   # MNIST data download, augmentation & training
 ├── app.py                     # OpenCV desktop application with MediaPipe
 ├── web_app.py                 # Live HTTP server with Grad-CAM & Math Solver API
+├── tunnel.js                  # Persistent public HTTPS live tunneling daemon
 ├── test_pipeline.py           # Comprehensive automated verification suite
 ├── generate_demo_gif.py       # Deterministic demo GIF generator
 ├── generate_curves.py         # Training curves visualizer
+├── package.json               # Node.js dependencies for tunneling
 └── requirements.txt           # Verified dependency versions
 ```
 

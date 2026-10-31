@@ -5,3 +5,5 @@ venv/
 data/
 assets/screenshot_*.png
 .DS_Store
+node_modules/
+LIVE_URL.txt
