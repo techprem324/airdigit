@@ -18,17 +18,6 @@
 
 AirDigit is a small, browser-based MNIST experiment. Draw a number with a mouse or touchscreen, or try drawing in the air with a webcam. A compact PyTorch convolutional neural network predicts the digit and shows its confidence for each of the ten classes.
 
-## Try it online
-
-Deploy this repository as a Python web service on [Render](https://render.com):
-
-1. Sign in to Render and choose **New → Blueprint**.
-2. Connect `techprem324/airdigit` and select the `main` branch.
-3. Review the `render.yaml` service configuration and create the service.
-4. Wait for the first build to finish. Open the `onrender.com` URL shown in the service dashboard.
-
-The first build installs the CPU-only PyTorch runtime and can take several minutes. Render's free service may sleep when idle; its first request after sleeping can take a little longer. The live URL is assigned by Render when the service is created.
-
 ## Run locally
 
 Python 3.12 is recommended.
@@ -42,9 +31,9 @@ pip install -r requirements.txt
 python web_app.py --host 127.0.0.1 --port 8000
 ```
 
-Open [http://localhost:8000](http://localhost:8000). If PowerShell blocks activation, run `.venv\Scripts\python.exe` instead of `python`.
+Open [http://localhost:8000](http://localhost:8000). Keep the server running in the terminal while using the app. Stop it with `Ctrl+C`. If PowerShell blocks activation, run `.venv\Scripts\python.exe web_app.py --host 127.0.0.1 --port 8000` instead.
 
-The webcam hand-tracking option needs camera permission and a secure context. `localhost` is allowed by browsers; a hosted site must use HTTPS. Drawing with a mouse or touchscreen does not require the camera.
+The webcam hand-tracking option needs camera permission and a secure context. `localhost` is allowed by browsers. Drawing with a mouse or touchscreen does not require the camera.
 
 ## How it works
 
@@ -99,6 +88,9 @@ airdigit/
 │   └── training_log.json      # Metadata and recorded training history
 ├── tests/
 │   └── test_app.py            # Preprocessing and HTTP API tests
+├── .github/
+│   └── workflows/
+│       └── test.yml           # Automated tests on GitHub Actions
 ├── web/
 │   ├── app.js                 # Drawing, camera, and prediction UI
 │   ├── index.html             # Accessible app page
@@ -108,8 +100,7 @@ airdigit/
 ├── train.py                   # MNIST training entry point
 ├── web_app.py                 # Web server and prediction API
 ├── requirements.txt           # Local and training dependencies
-├── requirements-deploy.txt    # Lean web-service dependencies
-└── render.yaml                # Render deployment configuration
+└── requirements-web.txt       # Lightweight web server and test dependencies
 ```
 
 ## License
