@@ -28,7 +28,6 @@
   <circle cx="1038" cy="83" r="48" fill="none" stroke="#1f4d43" stroke-opacity=".1" stroke-dasharray="2 7"/>
   <circle cx="1096" cy="227" r="3" fill="#d6755d"/>
   <circle cx="756" cy="231" r="3" fill="#d6755d" opacity=".7"/>
-  <text x="78" y="100" fill="#1f4d43" font-family="Arial, sans-serif" font-size="16" letter-spacing="4">A SMALL EXPERIMENT IN MACHINE LEARNING</text>
   <text x="74" y="187" fill="#202824" font-family="Georgia, serif" font-size="70" letter-spacing="-2">A little room</text>
   <text x="74" y="267" fill="#1f4d43" font-family="Georgia, serif" font-size="70" font-style="italic" letter-spacing="-2">to think.</text>
   <path d="M78 295h44" stroke="#d6755d" stroke-width="3" stroke-linecap="round"/>

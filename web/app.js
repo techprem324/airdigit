@@ -20,7 +20,7 @@
     overlay: $('overlay'), overlayText: $('overlayText'), overlayRetry: $('overlayRetry'), overlayMouse: $('overlayMouse'),
     undo: $('undoBtn'), clear: $('clearBtn'), save: $('saveBtn'),
     mark: $('mark'), digit: $('digit'), verdict: $('verdict'), chart: $('chart'),
-    seen: $('seen'), statusDot: $('statusDot'), statusText: $('statusText'),
+    seen: $('seen'),
     themeBtn: $('themeBtn')
   };
 
@@ -373,7 +373,6 @@
   function setMode(mode) {
     state.mode = mode;
     stage.dataset.mode = mode;
-    $('inputCaption').textContent = mode === 'camera' ? 'Webcam · Hand tracking' : 'Mouse or touch';
     redraw();
     if (mode === 'camera') {
       startCamera();
@@ -554,33 +553,9 @@
     }
   }
 
-  /* ---------- Check Server Status ---------- */
-  function checkStatus() {
-    fetch('/api/status')
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        if (data.ready) {
-          els.statusDot.dataset.state = 'ready';
-          var text = 'Model ready on ' + (data.device || 'CPU').toUpperCase();
-          if (data.meta && data.meta.test_acc) {
-            text += ', ' + (data.meta.test_acc * 100).toFixed(2) + '% test accuracy';
-          }
-          els.statusText.textContent = text;
-        } else {
-          els.statusDot.dataset.state = 'error';
-          els.statusText.textContent = data.message || 'Model offline';
-        }
-      })
-      .catch(function () {
-        els.statusDot.dataset.state = 'error';
-        els.statusText.textContent = 'Server disconnected';
-      });
-  }
-
   /* ---------- Initialisation ---------- */
   initTheme();
   renderChart([0,0,0,0,0,0,0,0,0,0], -1);
-  checkStatus();
   updateButtons();
 
 })();

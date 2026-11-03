@@ -31,6 +31,11 @@
   --shadow: 0 22px 60px rgba(0, 0, 0, 0.18);
 }
 
+[data-theme="dark"] .model-input {
+  background: linear-gradient(135deg, #7255bd, #cf668c 38%, #e49b62 70%, #4faeaa);
+  box-shadow: 0 5px 19px rgba(102, 77, 176, 0.32);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -102,39 +107,13 @@ a:focus-visible {
   color: var(--coral);
 }
 
-.topbar-right,
-.status {
+.topbar-right {
   display: flex;
   align-items: center;
 }
 
 .topbar-right {
-  gap: 20px;
-}
-
-.status {
-  gap: 8px;
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.status-dot,
-.caption-dot {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: #d3a75c;
-}
-
-.status-dot[data-state="ready"] {
-  background: #66a77c;
-  box-shadow: 0 0 0 3px rgba(102, 167, 124, 0.14);
-}
-
-.status-dot[data-state="error"] {
-  background: var(--coral);
+  gap: 12px;
 }
 
 .theme-button {
@@ -168,7 +147,6 @@ a:focus-visible {
   padding: 66px 0 38px;
 }
 
-.eyebrow,
 .section-label,
 .probability-heading,
 .prediction-label {
@@ -176,20 +154,6 @@ a:focus-visible {
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.11em;
-}
-
-.eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 0 16px;
-  color: var(--forest);
-}
-
-.eyebrow-line {
-  width: 24px;
-  height: 1px;
-  background: var(--coral);
 }
 
 h1 {
@@ -494,21 +458,11 @@ h1 em {
 }
 
 .input-caption {
-  justify-content: flex-start;
-  gap: 8px;
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
-}
-
-.caption-dot {
-  width: 5px;
-  height: 5px;
-  background: var(--forest);
-}
-
-.caption-separator {
-  color: var(--line);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
 }
 
 .actions {
@@ -656,34 +610,26 @@ kbd {
 }
 
 .model-input {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  display: grid;
+  width: 62px;
+  height: 62px;
+  flex: 0 0 auto;
+  place-items: center;
   margin-top: auto;
-  padding: 13px 0 0;
+  padding: 3px;
+  border-radius: 15px;
+  background: linear-gradient(135deg, #c47bd0, #e99979 35%, #e8ca76 62%, #70b8a0);
+  box-shadow: 0 5px 16px rgba(123, 96, 142, 0.19);
 }
 
 .model-input canvas {
-  width: 48px;
-  height: 48px;
-  flex: 0 0 auto;
+  display: block;
+  width: 100%;
+  height: 100%;
   image-rendering: pixelated;
-  border: 1px solid var(--line);
-  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
   background: #101411;
-}
-
-.model-input-title {
-  margin: 0 0 3px;
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.model-input-copy {
-  margin: 0;
-  color: var(--muted);
-  font-size: 9px;
-  line-height: 1.5;
 }
 
 .page-footer {
