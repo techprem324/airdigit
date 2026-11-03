@@ -144,7 +144,99 @@ a:focus-visible {
 }
 
 .intro {
-  padding: 66px 0 38px;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  margin: 34px 0 26px;
+  padding: 38px 42px 40px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background:
+    radial-gradient(ellipse at 82% 48%, rgba(181, 207, 185, 0.34), transparent 30%),
+    linear-gradient(112deg, var(--card) 38%, var(--forest-soft));
+  box-shadow: var(--shadow);
+}
+
+.intro::before,
+.intro::after {
+  position: absolute;
+  z-index: -1;
+  border: 1px solid rgba(31, 77, 67, 0.12);
+  border-radius: 50%;
+  content: "";
+  pointer-events: none;
+}
+
+.intro::before {
+  top: -190px;
+  right: 36px;
+  width: 410px;
+  height: 410px;
+}
+
+.intro::after {
+  top: -149px;
+  right: 77px;
+  width: 328px;
+  height: 328px;
+  border-style: dashed;
+}
+
+[data-theme="dark"] .intro {
+  background:
+    radial-gradient(ellipse at 82% 48%, rgba(67, 111, 87, 0.31), transparent 32%),
+    linear-gradient(112deg, var(--card) 38%, #263a31);
+}
+
+[data-theme="dark"] .intro::before,
+[data-theme="dark"] .intro::after {
+  border-color: rgba(157, 200, 181, 0.17);
+}
+
+.intro-art {
+  position: absolute;
+  z-index: -1;
+  top: 50%;
+  right: 48px;
+  width: min(31%, 300px);
+  overflow: visible;
+  transform: translateY(-50%);
+}
+
+.art-orbit {
+  fill: none;
+  stroke: var(--forest);
+  stroke-opacity: 0.17;
+}
+
+.art-orbit-inner {
+  stroke: var(--coral);
+  stroke-dasharray: 2 7;
+  stroke-opacity: 0.38;
+}
+
+.art-digit {
+  fill: none;
+  stroke: var(--forest);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 7;
+  opacity: 0.82;
+}
+
+.art-point-start {
+  fill: var(--coral);
+}
+
+.art-point-end {
+  fill: var(--forest);
+}
+
+.art-spark {
+  fill: none;
+  stroke: var(--coral);
+  stroke-linecap: round;
+  stroke-width: 2;
 }
 
 .section-label,
@@ -460,9 +552,10 @@ h1 em {
 .input-caption {
   margin: 0;
   color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.06em;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-style: italic;
+  letter-spacing: 0;
 }
 
 .actions {
@@ -657,7 +750,13 @@ kbd {
   }
 
   .intro {
-    padding-top: 48px;
+    padding: 38px 30px;
+  }
+
+  .intro-art {
+    right: 24px;
+    width: 31%;
+    opacity: 0.75;
   }
 
   .workspace {
@@ -698,15 +797,20 @@ kbd {
   }
 
   .intro {
-    padding: 40px 0 27px;
+    margin: 24px 0 20px;
+    padding: 32px 22px 34px;
   }
 
-  .eyebrow {
-    font-size: 8px;
+  .intro-art {
+    right: -32px;
+    width: 43%;
+    opacity: 0.48;
   }
 
   .intro-copy {
+    position: relative;
     max-width: 330px;
+    padding-right: 12px;
     font-size: 13px;
   }
 
