@@ -1,191 +1,124 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-theme="light">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AirDigit AI — Real-Time Mid-Air Digit Recognition</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f4ef">
+  <meta name="description" content="Draw a digit and watch a neural network recognize it in real time.">
+  <title>AirDigit — a little room to think</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='13' fill='%231f4d43'/%3E%3Cpath d='M13 26V14l7-5 7 5v12M13 19h14' fill='none' stroke='%23f5e7cc' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Outfit:wght@400;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css" />
-  <!-- MediaPipe Hands & Camera Utils -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=10">
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <script>
+    try {
+      var savedTheme = localStorage.getItem('airdigit-theme');
+      if (savedTheme === 'light' || savedTheme === 'dark') document.documentElement.dataset.theme = savedTheme;
+    } catch (error) {}
+  </script>
 </head>
 <body>
-  <div class="app-container">
-    <!-- Top Header -->
-    <header class="top-nav">
-      <div class="brand">
-        <div class="brand-icon">🖐️</div>
-        <div>
-          <h1>AIRDIGIT <span class="accent-text">AI</span></h1>
-          <p class="tagline">Real-Time CNN Mid-Air Digit Recognition & Math Engine</p>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="AirDigit home">
+      <span class="brand-mark" aria-hidden="true">a<span>.</span></span>
+      <span>airdigit</span>
+    </a>
+    <div class="topbar-right">
+      <p class="status" role="status">
+        <span class="status-dot" id="statusDot" data-state="loading"></span>
+        <span id="statusText">Waking up the model…</span>
+      </p>
+      <button class="theme-button" id="themeBtn" type="button" aria-label="Switch to dark theme">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20.2 15.1A8.3 8.3 0 0 1 8.9 3.8 8.3 8.3 0 1 0 20.2 15.1Z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="intro">
+      <p class="eyebrow"><span class="eyebrow-line"></span> A SMALL EXPERIMENT IN MACHINE LEARNING</p>
+      <h1>A little room<br>to <em>think.</em></h1>
+      <p class="intro-copy">Draw a number, any way you like. A neural network will take its best guess.</p>
+    </section>
+
+    <section class="workspace" aria-label="Digit drawing and recognition">
+      <div class="drawing-column">
+        <div class="workspace-heading">
+          <div>
+            <p class="section-label">THE CANVAS</p>
+            <p class="workspace-title">Make a mark</p>
+          </div>
+          <div class="mode-switch" role="group" aria-label="Drawing input">
+            <button type="button" class="mode-button" data-mode="mouse" aria-pressed="true">Draw</button>
+            <button type="button" class="mode-button" data-mode="camera" aria-pressed="false">Air draw</button>
+          </div>
+        </div>
+
+        <div class="stage" id="stage" data-mode="mouse">
+          <video id="video" playsinline muted></video>
+          <canvas id="ink" aria-label="Draw a number from zero to nine"></canvas>
+          <canvas id="fx" aria-hidden="true"></canvas>
+          <div class="guide" aria-hidden="true"><span>DRAW HERE</span></div>
+          <p class="hint" id="hint">Click and drag to draw a digit</p>
+          <div class="clear-ring" id="clearRing" hidden aria-hidden="true">
+            <svg viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="42" class="ring-track"></circle>
+              <circle cx="50" cy="50" r="42" class="ring-fill" id="ringFill" pathLength="1"></circle>
+            </svg>
+            <span>Release to clear</span>
+          </div>
+          <div class="overlay" id="overlay" hidden>
+            <p id="overlayText"></p>
+            <div class="overlay-actions">
+              <button type="button" class="button button-dark" id="overlayRetry">Try camera again</button>
+              <button type="button" class="button button-light" id="overlayMouse">Draw with mouse</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="canvas-footer">
+          <p class="input-caption"><span class="caption-dot"></span><span id="inputCaption">Mouse or touch</span><span class="caption-separator">/</span><span>No sign-in needed</span></p>
+          <div class="actions">
+            <button type="button" class="text-button" id="undoBtn" disabled><kbd>Z</kbd> Undo</button>
+            <button type="button" class="text-button" id="clearBtn" disabled><kbd>C</kbd> Clear</button>
+            <button type="button" class="save-button" id="saveBtn" disabled>Save image <span aria-hidden="true">↗</span></button>
+          </div>
         </div>
       </div>
-      <div class="header-badges">
-        <div class="badge status-badge" id="appModeBadge">
-          <span class="pulse-dot"></span>
-          <span id="appModeText">INITIALIZING</span>
+
+      <aside class="answer" aria-labelledby="answerTitle">
+        <div class="answer-heading">
+          <p class="section-label">THE MODEL GUESSES</p>
+          <span class="model-tag">CNN · MNIST</span>
         </div>
-        <div class="badge fps-badge" id="fpsBadge">
-          <span>FPS: <strong id="fpsVal">0.0</strong></span>
+        <div class="prediction" id="mark" data-state="empty" aria-live="polite">
+          <span class="prediction-number" id="digit">—</span>
+          <span class="prediction-label" id="answerTitle">PREDICTED DIGIT</span>
         </div>
-      </div>
-    </header>
-
-    <!-- Main Workspace -->
-    <main class="workspace">
-      <!-- Left: Interactive Canvas & Video -->
-      <section class="viewport-card">
-        <div class="viewport-wrapper" id="viewportWrapper">
-          <!-- Hidden Video Element for MediaPipe processing -->
-          <video id="webcamVideo" playsinline muted></video>
-          <!-- Display Canvas for Video + Skeleton + Particles + Ink -->
-          <canvas id="mainCanvas"></canvas>
-          <!-- Drawing Overlay Canvas -->
-          <canvas id="inkCanvas"></canvas>
-
-          <!-- On-Canvas HUD Notifications -->
-          <div class="hud-overlay" id="hudOverlay">
-            <div class="hud-gesture" id="hudGesture">
-              <span class="hud-icon" id="hudIcon">☝️</span>
-              <span id="hudMsg">Air-writing mode active</span>
-            </div>
-            <div class="fist-progress-ring" id="fistRing" style="display:none;">
-              <svg viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="42" class="ring-bg"></circle>
-                <circle cx="50" cy="50" r="42" class="ring-fill" id="fistRingFill"></circle>
-              </svg>
-              <span class="fist-label">CLEARING</span>
-            </div>
-          </div>
-
-          <!-- Bounding Box Prediction Tag -->
-          <div class="prediction-tag" id="predictionTag" style="display:none;">
-            <span class="pred-num" id="tagDigit">7</span>
-            <span class="pred-conf" id="tagConf">99%</span>
-          </div>
-        </div>
-
-        <!-- Viewport Toolbar -->
-        <div class="toolbar">
-          <div class="tool-group">
-            <button class="tool-btn active" id="btnToggleCam" title="Toggle Webcam">
-              <span class="icon">📷</span> <span class="btn-text">Camera</span>
-            </button>
-            <button class="tool-btn" id="btnToggleMouse" title="Toggle Mouse / Touch Drawing Mode">
-              <span class="icon">🖱️</span> <span class="btn-text">Mouse Draw</span>
-            </button>
-            <button class="tool-btn" id="btnMathMode" title="Toggle Math Solver Mode">
-              <span class="icon">🧮</span> <span class="btn-text">Math Solver</span>
-            </button>
-            <button class="tool-btn" id="btnGradCam" title="Toggle Grad-CAM Heatmap">
-              <span class="icon">🔥</span> <span class="btn-text">Grad-CAM</span>
-            </button>
-          </div>
-          <div class="tool-group">
-            <button class="tool-btn btn-danger" id="btnClear" title="Clear Canvas (Key: C)">
-              <span class="icon">🧹</span> <span class="btn-text">Clear (C)</span>
-            </button>
-            <button class="tool-btn" id="btnScreenshot" title="Take Screenshot (Key: S)">
-              <span class="icon">📸</span> <span class="btn-text">Snapshot (S)</span>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Right: Cyber Neon Analytics Dashboard -->
-      <aside class="dashboard-card">
-        <!-- Giant Prediction Card -->
-        <div class="prediction-card">
-          <div class="prediction-header">
-            <span>PREDICTED DIGIT</span>
-            <span class="badge confidence-badge" id="confidenceBadge">0.0% CONF</span>
-          </div>
-          <div class="prediction-body">
-            <div class="big-digit" id="bigDigit">?</div>
-            <div class="digit-sub" id="digitSub">Draw in mid-air or drag with mouse</div>
-          </div>
-        </div>
-
-        <!-- Model Preprocessing & Heatmap Views -->
-        <div class="inspectors-grid">
-          <div class="inspector-box">
-            <div class="inspector-label">
-              <span>MNIST INPUT (28×28)</span>
-              <span class="badge">Cropped & Centered</span>
-            </div>
-            <div class="preview-box">
-              <canvas id="previewCanvas" width="28" height="28"></canvas>
-              <div class="scanline"></div>
-            </div>
-          </div>
-
-          <div class="inspector-box" id="gradCamBox">
-            <div class="inspector-label">
-              <span>GRAD-CAM ACTIVATION</span>
-              <span class="badge highlight">Conv4 Heatmap</span>
-            </div>
-            <div class="preview-box">
-              <canvas id="gradCamCanvas" width="28" height="28"></canvas>
-            </div>
-          </div>
-        </div>
-
-        <!-- Math Solver Panel (Visible in Math Mode) -->
-        <div class="math-panel" id="mathPanel" style="display:none;">
-          <div class="math-header">
-            <span>MATH EXPRESSION SOLVER</span>
-            <span class="badge badge-accent">ACTIVE</span>
-          </div>
-          <div class="math-display">
-            <div class="math-expr" id="mathExpr">3 + 4</div>
-            <div class="math-equals">=</div>
-            <div class="math-res" id="mathRes">7</div>
-          </div>
-          <div class="math-steps" id="mathSteps">Draw digits and operators (+, -, *, /)</div>
-        </div>
-
-        <!-- Probability Distribution Bars (0 to 9) -->
-        <div class="prob-section">
-          <div class="section-title">
-            <span>CONFIDENCE DISTRIBUTION</span>
-            <span class="status-indicator">CNN SOFTMAX</span>
-          </div>
-          <div class="prob-bars" id="probBars">
-            <!-- 10 bars generated dynamically -->
-          </div>
-        </div>
-
-        <!-- Gesture Cheatsheet -->
-        <div class="gesture-guide">
-          <div class="guide-item">
-            <span class="guide-icon">☝️</span>
-            <div>
-              <strong>Index Up</strong>
-              <p>Draw Neon Ink</p>
-            </div>
-          </div>
-          <div class="guide-item">
-            <span class="guide-icon">✌️</span>
-            <div>
-              <strong>Index + Middle</strong>
-              <p>Hover Cursor</p>
-            </div>
-          </div>
-          <div class="guide-item">
-            <span class="guide-icon">✊</span>
-            <div>
-              <strong>Closed Fist (0.8s)</strong>
-              <p>Clear Canvas</p>
-            </div>
+        <p class="verdict" id="verdict" aria-live="polite">Your next mark could be anything.</p>
+        <div class="probability-heading"><span>CONFIDENCE BY DIGIT</span><span>0—9</span></div>
+        <div class="chart" id="chart" role="img" aria-label="Probability for each digit"></div>
+        <div class="model-input">
+          <canvas id="seen" width="28" height="28"></canvas>
+          <div>
+            <p class="model-input-title">What the model sees</p>
+            <p class="model-input-copy">Your drawing, centered and resized to 28 × 28 pixels.</p>
           </div>
         </div>
       </aside>
-    </main>
-  </div>
+    </section>
 
-  <script src="app.js"></script>
+    <footer class="page-footer">
+      <p>Made for curious minds.</p>
+      <p>Draw with your hand <span aria-hidden="true">·</span> Keep the wonder</p>
+    </footer>
+  </main>
+
+  <script src="app.js?v=10"></script>
 </body>
 </html>

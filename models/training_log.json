@@ -1,0 +1,39 @@
+{
+  "args": {
+    "epochs": 2,
+    "batch": 128,
+    "lr": 0.002,
+    "weight_decay": 0.0005,
+    "label_smoothing": 0.05,
+    "width": 1,
+    "val_size": 5000,
+    "patience": 0,
+    "workers": 2,
+    "seed": 42,
+    "out": "models/digit_cnn.pt",
+    "data_dir": "/tmp/claude-0/-home-claude/0a649db0-60d1-5ee7-a6fd-8db1258702f8/scratchpad/mnist"
+  },
+  "history": {
+    "train_loss": [
+      1.1095075251617077,
+      0.6265958747663698
+    ],
+    "val_loss": [
+      0.43338522019386294,
+      0.38903876404762266
+    ],
+    "val_acc": [
+      0.9798,
+      0.986
+    ]
+  },
+  "meta": {
+    "epoch": 2,
+    "epochs_planned": 2,
+    "val_acc": 0.986,
+    "test_acc": 0.9911,
+    "epochs_run": 2,
+    "best_epoch": 2,
+    "train_minutes": 3.0
+  }
+}

@@ -1,175 +1,199 @@
-"""AirDigit AI - Live Web Application Server
-Serves the modern neon web interface and exposes real-time CNN inference & Math Solver APIs.
+"""airdigit web server.
+
+Serves the interface in web/ and exposes two JSON endpoints:
+
+    GET  /api/status    is a trained model loaded, and which device it runs on
+    POST /api/predict   {"image": "<data URL of a white-on-black PNG>"}
+
+Run it with:  python web_app.py   then open http://localhost:8000
 """
+import argparse
 import base64
-import io
 import json
-import os
-import re
+import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import cv2
 import numpy as np
-import torch
-import torch.nn.functional as F
-from PIL import Image
 
-from model import DigitCNN, MEAN, STD
+from preprocess import normalise, to_mnist
 
-PORT = 8000
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-MODEL_PATH = str((Path(__file__).parent / "models" / "digit_cnn.pt").resolve())
+ROOT = Path(__file__).resolve().parent
+WEB_DIR = ROOT / "web"
+MAX_BODY = 2 * 1024 * 1024  # a 112x112 PNG is a few KB; this is generous
 
-# Global model state
-_model = None
+# Some Windows setups map .js to text/plain, which browsers refuse to run.
+SimpleHTTPRequestHandler.extensions_map.update({".js": "text/javascript", ".css": "text/css"})
 
 
-def get_model():
-    global _model
-    if _model is not None:
-        return _model
-    if Path(MODEL_PATH).exists():
+class Predictor:
+    """Loads the trained CNN once and answers predictions. torch is imported lazily."""
+
+    def __init__(self, model_path, device=None):
+        self.path = Path(model_path)
+        self.model = None
+        self.meta = {}
+        self.device = "cpu"
+        self.error = None
+        self._torch = None
+        self._load(device)
+
+    def _load(self, device):
+        if not self.path.exists():
+            self.error = (f"No trained model found at {self.path}. "
+                          "Run `python train.py`, then restart the server.")
+            return
         try:
-            m = DigitCNN().to(DEVICE)
-            m.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
-            m.eval()
-            _model = m
-            print(f"Loaded trained DigitCNN from {MODEL_PATH} on {DEVICE}")
-            return _model
-        except Exception as e:
-            print(f"Error loading {MODEL_PATH}: {e}")
-    # Return initialized model if trained model is not yet saved
-    m = DigitCNN().to(DEVICE)
-    m.eval()
-    return m
+            import torch
+            from model import load_checkpoint
+        except ImportError as exc:
+            self.error = f"PyTorch is not installed ({exc}). Run `pip install -r requirements.txt`."
+            return
+        self._torch = torch
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        try:
+            self.model, self.meta = load_checkpoint(self.path, self.device)
+        except Exception as exc:  # corrupted or incompatible file
+            self.error = f"Could not load {self.path.name}: {exc}"
 
+    @property
+    def ready(self) -> bool:
+        return self.model is not None
 
-def compute_gradcam(model, tensor_x, class_idx):
-    """Compute feature activation heatmap on the last convolutional block."""
-    try:
+    def status(self) -> dict:
+        return {"ready": self.ready, "device": self.device, "message": self.error, "meta": self.meta}
+
+    def predict(self, img28: np.ndarray) -> list:
+        torch = self._torch
+        x = torch.from_numpy(normalise(img28)).to(self.device)
         with torch.no_grad():
-            feats = model.features(tensor_x)  # shape (1, 64, 7, 7)
-            cam = feats[0].mean(dim=0).cpu().numpy()  # shape (7, 7)
-            cam = np.maximum(cam, 0)
-            cam = cv2.resize(cam, (28, 28), interpolation=cv2.INTER_CUBIC)
-            c_min, c_max = cam.min(), cam.max()
-            cam = (cam - c_min) / (c_max - c_min + 1e-8)
-            cam = (cam * 255).astype(np.uint8)
-            heatmap = cv2.applyColorMap(cam, cv2.COLORMAP_JET)
-            return heatmap
-    except Exception as e:
-        print(f"Error computing activation heatmap: {e}")
-        return np.zeros((28, 28, 3), dtype=np.uint8)
+            probs = torch.softmax(self.model(x), dim=1)[0]
+        return probs.cpu().tolist()
 
 
-def solve_math_expression(img_gray):
-    """Simple segmentation and solver for air-drawn math expressions."""
-    # Find bounding contours
-    _, thresh = cv2.threshold(img_gray, 40, 255, cv2.THRESH_BINARY)
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if not contours:
-        return {"expression": "", "result": "", "steps": "No ink detected"}
+class Handler(SimpleHTTPRequestHandler):
+    predictor = None  # set by make_server
 
-    # Sort contours left to right
-    boxes = [cv2.boundingRect(c) for c in contours if cv2.contourArea(c) > 40]
-    boxes.sort(key=lambda b: b[0])
-
-    if len(boxes) < 3:
-        # Default expression preview if single glyph
-        return {"expression": "3 + 4", "result": "7", "steps": "Draw digits & operator (e.g. 3 + 4)"}
-
-    return {"expression": "3 + 4", "result": "7", "steps": "Expression evaluated"}
-
-
-class AirDigitHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(Path(__file__).parent / "web"), **kwargs)
+        super().__init__(*args, directory=str(WEB_DIR), **kwargs)
+
+    # Only log problems, not every static file.
+    def log_request(self, code="-", size="-"):
+        if str(code).isdigit() and int(code) >= 400:
+            super().log_request(code, size)
+
+    def end_headers(self):
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        super().end_headers()
+
+    def send_json(self, status: int, payload: dict):
+        body = json.dumps(payload).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Bypass-Tunnel-Reminder")
+        self.end_headers()
+        self.wfile.write(body)
 
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Bypass-Tunnel-Reminder")
         self.end_headers()
 
-    def do_POST(self):
-        if self.path == "/api/predict":
-            length = int(self.headers.get("Content-Length", 0))
-            body = json.loads(self.rfile.read(length).decode("utf-8"))
-            data_url = body.get("image", "")
-
-            # Decode data URL
-            if "," in data_url:
-                data_url = data_url.split(",")[1]
-            img_bytes = base64.b64decode(data_url)
-            pil_img = Image.open(io.BytesIO(img_bytes)).convert("L")
-            img_np = np.array(pil_img)
-
-            model = get_model()
-            x = torch.from_numpy(img_np).float().div(255.0)
-            x = ((x - MEAN) / STD)[None, None].to(DEVICE)
-            with torch.no_grad():
-                logits = model(x)
-                probs = torch.softmax(logits, dim=1)[0]
-                top_class = int(probs.argmax().item())
-                confidence = float(probs[top_class].item())
-
-                # Grad-CAM heatmap
-                heatmap = compute_gradcam(model, x, top_class)
-                _, h_buf = cv2.imencode(".png", heatmap)
-                h_b64 = "data:image/png;base64," + base64.b64encode(h_buf).decode("utf-8")
-
-            math_res = None
-            if body.get("mathMode"):
-                math_res = solve_math_expression(img_np)
-
-            resp = {
-                "prediction": top_class,
-                "confidence": confidence,
-                "probabilities": [round(float(p), 4) for p in probs.detach().cpu().numpy()],
-                "gradcam": h_b64,
-                "mathResult": math_res,
-            }
-
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-            self.end_headers()
-            self.wfile.write(json.dumps(resp).encode("utf-8"))
-            return
-
-        super().do_POST()
-
     def do_GET(self):
-        if self.path == "/api/status":
-            has_weights = Path(MODEL_PATH).exists()
-            resp = {
-                "status": "online",
-                "device": DEVICE,
-                "has_weights": has_weights,
-                "model_path": MODEL_PATH,
-            }
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-            self.end_headers()
-            self.wfile.write(json.dumps(resp).encode("utf-8"))
-            return
+        clean_path = self.path.split("?")[0]
+        if clean_path == "/api/status":
+            return self.send_json(200, self.predictor.status())
+        if clean_path == "/health":
+            ready = self.predictor.ready
+            return self.send_json(200 if ready else 503, {"ready": ready})
         super().do_GET()
+
+    def do_POST(self):
+        clean_path = self.path.split("?")[0]
+        if clean_path != "/api/predict":
+            return self.send_json(404, {"error": "Not found."})
+
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except ValueError:
+            length = 0
+        if length <= 0 or length > MAX_BODY:
+            return self.send_json(400, {"error": "Send a PNG under 2 MB."})
+
+        try:
+            data_url = json.loads(self.rfile.read(length))["image"]
+            raw = base64.b64decode(data_url.split(",", 1)[-1], validate=True)
+            gray = cv2.imdecode(np.frombuffer(raw, np.uint8), cv2.IMREAD_GRAYSCALE)
+        except (ValueError, KeyError, TypeError):
+            gray = None
+        if gray is None:
+            return self.send_json(400, {"error": "The image could not be read."})
+
+        if not self.predictor.ready:
+            return self.send_json(503, {"error": self.predictor.error})
+
+        img28 = to_mnist(gray)
+        if img28 is None:
+            return self.send_json(422, {"error": "There is no ink in the image."})
+
+        probs = self.predictor.predict(img28)
+        top = int(np.argmax(probs))
+        ok, png = cv2.imencode(".png", img28)
+        self.send_json(200, {
+            "prediction": top,
+            "confidence": probs[top],
+            "probabilities": [round(p, 4) for p in probs],
+            "input": "data:image/png;base64," + base64.b64encode(png).decode("ascii") if ok else None,
+        })
+
+
+def make_server(predictor, host="0.0.0.0", port=8000) -> ThreadingHTTPServer:
+    class Bound(Handler):
+        pass
+
+    Bound.predictor = predictor
+    return ThreadingHTTPServer((host, port), Bound)
 
 
 def main():
-    print(f"Starting AirDigit AI Web Server on http://localhost:{PORT}")
-    server = ThreadingHTTPServer(("0.0.0.0", PORT), AirDigitHandler)
+    ap = argparse.ArgumentParser(description="Run the airdigit web app.")
+    ap.add_argument("--host", default="0.0.0.0", help="use 0.0.0.0 to open it to your local network")
+    ap.add_argument("--port", type=int, default=8000)
+    ap.add_argument("--model", default=str(ROOT / "models" / "digit_cnn.pt"))
+    ap.add_argument("--open", action="store_true", help="open the browser when the server starts")
+    args = ap.parse_args()
+
+    predictor = Predictor(args.model)
+    if predictor.ready:
+        meta = predictor.meta
+        score = f", test accuracy {meta['test_acc'] * 100:.2f}%" if "test_acc" in meta else ""
+        print(f"Model loaded on {predictor.device}{score}")
+    else:
+        print(f"Warning: {predictor.error}")
+
+    try:
+        server = make_server(predictor, args.host, args.port)
+    except OSError:
+        raise SystemExit(f"Port {args.port} is already in use. Try: python web_app.py --port {args.port + 1}")
+
+    url = f"http://localhost:{args.port}"
+    print(f"airdigit is running at {url}   (Ctrl+C to stop)")
+    if args.open:
+        webbrowser.open(url)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\nShutting down server.")
+        print("\nStopped.")
+    finally:
         server.server_close()
 
 
